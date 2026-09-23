@@ -1,0 +1,1665 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Semakan Yuran</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- PWA: Manifest, Icons, Meta (Android/Chrome + iOS/Apple) -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16x16.png">
+    <link rel="shortcut icon" href="icons/favicon.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+    <meta name="theme-color" content="#2ba401">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="PASTI">
+
+    <style>
+        /* Custom Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Hide scrollbar for form area */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 font-sans text-slate-900 flex flex-col items-center py-10 px-4 min-h-screen">
+
+    <!-- HEADER -->
+    <div class="w-full max-w-md text-center mb-8">
+        <div class="inline-flex items-center justify-center w-20 h-20 bg-white rounded-full mb-4 shadow-lg shadow-slate-200 border border-slate-100 overflow-hidden">
+            <img src="icons/logo-master.png" alt="Logo PASTI" class="w-full h-full object-contain p-1">
+        </div>
+        <h1 class="text-3xl font-bold text-slate-800 mb-2">Semakan Yuran Pelajar</h1>
+        <p class="text-slate-500">Masukkan No. Kad Pengenalan PELAJAR atau No. Telefon WARIS untuk menyemak status yuran terkini.</p>
+    </div>
+
+    <!-- SEARCH CARD -->
+    <div class="w-full max-w-md bg-white rounded-2xl shadow-xl p-6 mb-6 border border-slate-100">
+        <form id="searchForm" class="flex flex-col space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1 ml-1">
+                    No. Kad Pengenalan (IC) Pelajar / No. Telefon Waris
+                </label>
+                <div class="relative">
+                    <input type="text" id="searchIc" placeholder="Contoh: 010101010101 atau 0123456789"
+                        class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all">
+                    <div class="absolute left-3 top-3.5 text-slate-400">
+                        <i data-lucide="user" class="w-5 h-5"></i>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" id="searchBtn"
+                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center space-x-2 disabled:opacity-70 disabled:cursor-not-allowed">
+                <span id="btnText">Semak Yuran</span>
+                <div id="btnLoader" class="loader ml-2 hidden"></div>
+            </button>
+        </form>
+    </div>
+
+    <!-- ERROR MESSAGE CONTAINER -->
+    <div id="errorContainer" class="w-full max-w-md hidden mb-6">
+        <div class="bg-red-50 border border-red-100 text-red-600 p-4 rounded-xl flex items-start space-x-3">
+            <i data-lucide="alert-circle" class="w-5 h-5 mt-0.5 flex-shrink-0"></i>
+            <p id="errorText"></p>
+        </div>
+    </div>
+
+    <!-- RESULT DISPLAY -->
+    <div id="resultContainer" class="w-full max-w-md hidden animate-fade-in space-y-6">
+        
+        <!-- PROFILE CARD -->
+        <div class="bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden">
+            <!-- Profile Header -->
+            <div class="bg-gradient-to-r from-blue-600 to-blue-500 p-6 flex flex-col items-center text-center">
+                <div class="relative mb-3">
+                    <div class="w-28 h-28 rounded-full border-4 border-white shadow-md bg-slate-200 overflow-hidden flex items-center justify-center bg-white">
+                        <img id="profileImage" src="" alt="Profile" class="w-full h-full object-cover hidden">
+                        <i id="profileFallback" data-lucide="user" class="w-14 h-14 text-slate-400"></i>
+                    </div>
+                    <button id="editPhotoBtn" type="button" title="Tukar gambar pelajar" class="absolute bottom-0 right-0 bg-blue-600 hover:bg-blue-700 text-white p-1.5 rounded-full shadow-md border-2 border-white transition-colors">
+                        <i data-lucide="pencil" class="w-3 h-3"></i>
+                    </button>
+                    <input type="file" id="editPhotoInput" accept="image/*" class="hidden">
+                </div>
+                <h2 id="studentName" class="text-white font-bold text-xl leading-tight mb-1"></h2>
+                <p id="studentIcDisplay" class="text-blue-100 text-sm font-medium bg-blue-700/30 px-3 py-1 rounded-full"></p>
+                <p id="studentPasti" class="text-blue-100 text-xs mt-2 uppercase tracking-wide"></p>
+            </div>
+
+            <!-- Profile Details -->
+            <div class="p-6 space-y-4">
+                <!-- Info Akademik -->
+                <div class="grid grid-cols-2 gap-4 pb-4 border-b border-slate-100">
+                    <div>
+                        <p class="text-xs text-slate-400 uppercase font-bold flex items-center mb-1">
+                            <i data-lucide="user" class="w-3 h-3 mr-1"></i> Jantina
+                        </p>
+                        <p id="studentGender" class="font-semibold text-slate-700">-</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-400 uppercase font-bold flex items-center mb-1">
+                            <i data-lucide="graduation-cap" class="w-3 h-3 mr-1"></i> Kelas
+                        </p>
+                        <p id="studentClass" class="font-semibold text-slate-700">-</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-400 uppercase font-bold flex items-center mb-1">
+                            <i data-lucide="calendar" class="w-3 h-3 mr-1"></i> Tahun
+                        </p>
+                        <p id="studentTahun" class="font-semibold text-slate-700">-</p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-400 uppercase font-bold flex items-center mb-1">
+                            <i data-lucide="building" class="w-3 h-3 mr-1"></i> Cawangan
+                        </p>
+                        <p id="studentCawangan" class="font-semibold text-slate-700">-</p>
+                    </div>
+                </div>
+
+                <!-- Guru Kelas -->
+                <div class="pb-4 border-b border-slate-100">
+                    <p class="text-xs text-slate-400 uppercase font-bold flex items-center mb-2">
+                        <i data-lucide="users" class="w-3 h-3 mr-1"></i> Guru Kelas
+                    </p>
+                    <div class="flex items-start justify-between">
+                        <span id="studentGuru" class="font-semibold text-slate-700">-</span>
+                        <a id="studentGuruLink" href="#" class="hidden text-blue-600 bg-blue-50 px-2 py-1 rounded text-xs font-bold flex items-center">
+                            <i data-lucide="phone" class="w-3 h-3 mr-1"></i> Call
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Waris -->
+                <div class="pb-4 border-b border-slate-100">
+                    <div class="flex items-center justify-between mb-2">
+                        <p class="text-xs text-slate-400 uppercase font-bold flex items-center">
+                            <i data-lucide="user" class="w-3 h-3 mr-1"></i> Waris / Penjaga
+                        </p>
+                        <button id="editPhoneBtn" type="button" title="Kemaskini no. telefon" class="text-blue-500 hover:text-blue-700 p-1 rounded hover:bg-blue-50">
+                            <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </div>
+                    <div id="warisDisplayBlock" class="bg-slate-50 p-3 rounded-lg">
+                        <p id="studentWaris" class="font-semibold text-slate-800">-</p>
+                        <p id="studentWarisPhone" class="text-sm text-slate-500 flex items-center mt-1 hidden">
+                            <i data-lucide="phone" class="w-3 h-3 mr-1"></i> <span id="warisPhoneText"></span>
+                        </p>
+                    </div>
+                    <div id="phoneEditBlock" class="hidden bg-blue-50 p-3 rounded-lg space-y-2 border border-blue-100">
+                        <input type="tel" id="editPhone1" placeholder="No. telefon 1 (cth: 0123456789)" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-blue-200">
+                        <input type="tel" id="editPhone2" placeholder="No. telefon 2 (pilihan)" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-blue-200">
+                        <div class="flex gap-2 pt-1">
+                            <button id="savePhoneBtn" type="button" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 rounded-lg transition-colors">Simpan</button>
+                            <button id="cancelPhoneBtn" type="button" class="px-3 text-xs font-semibold text-slate-500 hover:bg-slate-100 rounded-lg transition-colors">Batal</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alamat -->
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <p class="text-xs text-slate-400 uppercase font-bold flex items-center">
+                            <i data-lucide="map-pin" class="w-3 h-3 mr-1"></i> Alamat
+                        </p>
+                        <button id="editAlamatBtn" type="button" title="Kemaskini alamat" class="text-blue-500 hover:text-blue-700 p-1 rounded hover:bg-blue-50">
+                            <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </div>
+                    <p id="studentAddress" class="text-sm text-slate-600 leading-relaxed"></p>
+                    <div id="alamatEditBlock" class="hidden space-y-2 mt-2">
+                        <textarea id="editAlamatInput" rows="3" class="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 outline-none focus:ring-2 focus:ring-blue-200" placeholder="Alamat penuh"></textarea>
+                        <div class="flex gap-2">
+                            <button id="saveAlamatBtn" type="button" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 rounded-lg transition-colors">Simpan</button>
+                            <button id="cancelAlamatBtn" type="button" class="px-3 text-xs font-semibold text-slate-500 hover:bg-slate-100 rounded-lg transition-colors">Batal</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PAYMENT GRID -->
+        <div class="bg-white rounded-2xl shadow-lg border border-slate-100 p-6">
+            <h3 class="text-slate-800 font-bold mb-6 flex items-center">
+                <i data-lucide="calendar" class="w-5 h-5 mr-2 text-blue-600"></i>
+                Rekod Bayaran <span id="currentYear"></span>
+            </h3>
+            
+            <!-- 1. KAD YURAN PENDAFTARAN (TENGAH ATAS) -->
+            <div id="regCardContainer" class="flex justify-center mb-8">
+                <!-- Injected via JS -->
+            </div>
+
+            <!-- GRID BULANAN -->
+            <div id="monthGrid" class="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                <!-- Grid items generated by JS -->
+            </div>
+            <p class="text-[10px] text-slate-400 mt-3 text-center italic">
+                * Tekan pada kotak bulan atau pendaftaran untuk melihat baki.
+            </p>
+        </div>
+
+        <!-- YURAN LAIN-LAIN (ad-hoc, cth Yuran Baju/Event — dikenakan admin) -->
+        <div id="adhocFeesSection" class="bg-white rounded-2xl shadow-lg border border-slate-100 p-6 hidden">
+            <h3 class="text-slate-800 font-bold mb-4 flex items-center">
+                <i data-lucide="shirt" class="w-5 h-5 mr-2 text-blue-600"></i>
+                Yuran Lain-Lain
+            </h3>
+            <div id="adhocFeesList" class="space-y-3"></div>
+        </div>
+
+        <!-- PAYMENT LOG TABLE -->
+        <div id="paymentLogSection" class="bg-white rounded-2xl shadow-lg border border-slate-100 p-6 hidden">
+            <h3 class="text-slate-800 font-bold mb-4 flex items-center">
+                <i data-lucide="list" class="w-5 h-5 mr-2 text-blue-600"></i>
+                Log Pembayaran
+            </h3>
+            <div class="overflow-x-auto -mx-2">
+                <table class="w-full text-left text-xs">
+                    <thead>
+                        <tr class="text-slate-400 uppercase border-b border-slate-100">
+                            <th class="p-2">Jenis</th>
+                            <th class="p-2">Tarikh</th>
+                            <th class="p-2">Jumlah</th>
+                            <th class="p-2">Status</th>
+                            <th class="p-2 text-center">Resit</th>
+                        </tr>
+                    </thead>
+                    <tbody id="paymentLogBody" class="divide-y divide-slate-100"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- FEES INFO (SEBELAH-SEBELAH) -->
+        <div id="feesInfoSection" class="hidden">
+            <h3 class="text-slate-500 font-semibold ml-1 mt-4 mb-2">Kadar Yuran</h3>
+            <!-- Grid 2 Columns -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div id="feeRegCard" class="hidden bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex items-center space-x-4">
+                    <div class="p-3 rounded-full bg-emerald-600 bg-opacity-10 text-emerald-600">
+                        <i data-lucide="credit-card" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <p id="feeRegLabel" class="text-xs text-slate-500 font-bold uppercase">Yuran Pendaftaran</p>
+                        <p id="feeRegAmount" class="text-lg font-bold text-slate-800">RM 0.00</p>
+                    </div>
+                </div>
+                <div id="feeMonthCard" class="hidden bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex items-center space-x-4">
+                    <div class="p-3 rounded-full bg-purple-600 bg-opacity-10 text-purple-600">
+                        <i data-lucide="credit-card" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-500 font-bold uppercase">Yuran Bulanan</p>
+                        <p id="feeMonthAmount" class="text-lg font-bold text-slate-800">RM 0.00</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PAYMENT FORM SECTION -->
+        <div id="paymentFormSection" class="pt-6 border-t-2 border-dashed border-slate-200 scroll-mt-6">
+            <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center">
+                <i data-lucide="file-text" class="w-5 h-5 mr-2 text-blue-600"></i>
+                Borang Bayaran
+            </h3>
+
+            <!-- Success Message -->
+            <div id="paymentSuccess" class="hidden bg-green-50 border border-green-200 rounded-xl p-6 text-center animate-fade-in">
+                <div class="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i data-lucide="check-circle-2" class="w-10 h-10"></i>
+                </div>
+                <h4 class="text-lg font-bold text-green-800 mb-2">Bayaran Direkodkan!</h4>
+                <p class="text-green-700 text-sm mb-4">
+                    Terima kasih. Sistem kini mengemaskini jumlah bayaran anda.
+                    Sila semak semula status.
+                </p>
+                <button id="btnNewPayment" class="text-green-700 font-semibold hover:text-green-900 underline text-sm">
+                    Buat bayaran lain
+                </button>
+            </div>
+
+            <!-- The Form -->
+            <form id="paymentForm" class="bg-white rounded-2xl shadow-lg border border-slate-100 p-6 space-y-4">
+                
+                <!-- MAKLUMAT BANK & QR CODE — diisi terus dari GET_APP_SETTINGS
+                     (BANK_NAMA/BANK_PEMEGANG_AKAUN/BANK_NO_AKAUN/QR_FILE_ID),
+                     bukan hardcode — setiap client PASTI ada akaun bank sendiri.
+                     Rujuk fetchAppSettings() untuk logik populate. -->
+                <div class="bg-blue-50 border border-blue-200 rounded-xl p-5 text-center">
+                    <h4 class="text-xs font-bold text-blue-800 mb-3 uppercase tracking-wider">Maklumat Akaun Pembayaran</h4>
+
+                    <!-- Keadaan: maklumat bank belum disediakan SuperAdmin lagi -->
+                    <div id="bankInfoEmpty" class="hidden text-sm text-blue-900 py-2">
+                        <p class="font-semibold">Maklumat pembayaran belum disediakan.</p>
+                        <p class="text-xs text-blue-700 mt-1">Sila hubungi pihak pentadbir PASTI untuk maklumat akaun bank.</p>
+                    </div>
+
+                    <div id="bankInfoContent" class="hidden">
+                        <!-- QR Code -->
+                        <div id="qrCodeWrap" class="hidden flex justify-center mb-3">
+                            <div class="p-2 bg-white rounded-xl shadow-sm border border-blue-100">
+                                <img id="qrCodeImg" src="" alt="QR Kod Bank" class="w-40 h-40 object-contain rounded-lg">
+                            </div>
+                        </div>
+
+                        <!-- Bank Details -->
+                        <div class="space-y-1 text-sm text-blue-900">
+                            <p id="bankNamaText" class="font-black text-lg"></p>
+                            <p id="bankPemegangText" class="font-semibold text-xs sm:text-sm"></p>
+
+                            <div class="flex items-center justify-center space-x-2 mt-3">
+                                <span id="bankNoAkaunText" class="font-mono text-base sm:text-lg font-bold bg-white px-3 py-1.5 rounded-lg border border-blue-200 shadow-inner tracking-wider"></span>
+                                <button type="button" onclick="copyAccountNo()" class="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg shadow-md transition-all active:scale-95 flex items-center justify-center" title="Salin Nombor Akaun">
+                                    <i data-lucide="copy" class="w-5 h-5"></i>
+                                </button>
+                            </div>
+                            <p id="copyFeedback" class="text-xs text-emerald-600 font-bold mt-2 opacity-0 transition-opacity duration-300">Nombor akaun berjaya disalin!</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Readonly Fields -->
+                <div class="grid grid-cols-1 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Nama Pelajar</label>
+                        <p id="formStudentName" class="text-slate-700 font-semibold text-sm truncate">-</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">No. IC</label>
+                        <p id="formStudentIc" class="text-slate-700 font-semibold text-sm">-</p>
+                    </div>
+                </div>
+
+                <!-- Month Select -->
+                <div>
+                    <label id="formMonthLabel" class="block text-sm font-medium text-slate-700 mb-1">Jenis Bayaran (Bulan/Pendaftaran)</label>
+                    <div class="relative">
+                        <select id="formMonth" required class="w-full pl-10 pr-4 py-3 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none appearance-none">
+                            <!-- Options generated by JS -->
+                        </select>
+                        <div class="absolute left-3 top-3.5 text-slate-400">
+                            <i data-lucide="calendar" class="w-5 h-5"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Amount Input -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Jumlah Bayaran (RM)</label>
+                    <div class="relative">
+                        <input type="number" id="formAmount" step="0.01" required placeholder="0.00"
+                            class="w-full pl-10 pr-4 py-3 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+                        <span class="absolute left-3 top-3.5 text-slate-400 font-bold text-sm">RM</span>
+                    </div>
+                </div>
+
+                <!-- File Upload -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">Bukti Transaksi (Gambar/PDF)</label>
+                    
+                    <div id="dropZone" class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-slate-300 border-dashed rounded-xl hover:bg-slate-50 transition-colors cursor-pointer relative">
+                        <input type="file" id="formFile" accept="image/*,application/pdf" required class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                        
+                        <!-- Empty State -->
+                        <div id="fileEmptyState" class="space-y-1 text-center">
+                            <div class="mx-auto h-12 w-12 text-slate-400 flex justify-center">
+                                <i data-lucide="upload" class="w-8 h-8"></i>
+                            </div>
+                            <div class="flex text-sm text-slate-600 justify-center">
+                                <span class="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500">
+                                    Muat naik Fail
+                                </span>
+                            </div>
+                            <p class="text-xs text-slate-500">JPG, PNG, atau PDF (Max 5MB)</p>
+                        </div>
+
+                        <!-- Preview State -->
+                        <div id="filePreviewState" class="hidden relative w-full flex flex-col items-center">
+                            <img id="imgPreview" src="" class="hidden w-full h-48 object-cover rounded-xl border border-slate-200">
+                            <div id="pdfPreview" class="hidden w-full h-32 bg-slate-100 rounded-xl border border-slate-200 flex flex-col items-center justify-center p-4">
+                                <i data-lucide="file-type" class="w-12 h-12 text-red-500 mb-2"></i>
+                                <p id="fileName" class="text-sm font-medium text-slate-700 text-center truncate w-full px-4"></p>
+                                <p class="text-xs text-slate-500">Dokumen PDF Dipilih</p>
+                            </div>
+                            <button type="button" id="removeFileBtn" class="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full shadow-md hover:bg-red-600 z-10">
+                                <i data-lucide="x" class="w-4 h-4"></i>
+                            </button>
+                            <p class="text-center text-xs text-green-600 mt-2 font-medium flex items-center justify-center">
+                                <i data-lucide="check-circle-2" class="w-3 h-3 mr-1"></i> Fail berjaya dipilih
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submit Error -->
+                <div id="submitError" class="hidden bg-red-50 border border-red-200 p-3 rounded-lg flex items-start space-x-2 text-sm text-red-600">
+                    <i data-lucide="alert-circle" class="w-4 h-4 mt-0.5 flex-shrink-0"></i>
+                    <span id="submitErrorText"></span>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" id="submitBtn" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center space-x-2 disabled:opacity-70 disabled:cursor-not-allowed">
+                    <i id="submitIcon" data-lucide="send" class="w-5 h-5"></i>
+                    <div id="submitLoader" class="loader hidden"></div>
+                    <span id="submitText">Hantar Bukti Bayaran</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL -->
+    <div id="detailModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fade-in">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 relative border border-slate-100">
+            <button id="closeModalBtn" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100 transition-colors">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+
+            <div class="text-center">
+                <div class="mb-4">
+                    <span id="modalMonth" class="bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
+                        -
+                    </span>
+                </div>
+
+                <div class="flex justify-center mb-4" id="modalIconContainer">
+                    <!-- Icon injected via JS -->
+                </div>
+
+                <h3 id="modalTitle" class="text-xl font-bold text-slate-800 mb-1">-</h3>
+                
+                <div id="modalStatusText" class="mb-4 text-sm font-medium"></div>
+
+                <div class="border-t border-slate-100 my-4"></div>
+
+                <div class="space-y-2 text-left">
+                    <div class="flex justify-between text-xs text-slate-500">
+                        <span>Jumlah Yuran:</span>
+                        <span id="modalFee" class="font-semibold">RM 0.00</span>
+                    </div>
+                    <div class="flex justify-between text-xs text-slate-500">
+                        <span>Telah Dibayar:</span>
+                        <span id="modalPaid" class="font-semibold text-green-600">RM 0.00</span>
+                    </div>
+                    
+                    <div class="bg-slate-50 rounded-xl p-3 mt-2 text-center">
+                        <p class="text-xs text-slate-500 uppercase font-bold mb-1">
+                            Baki Perlu Dibayar
+                        </p>
+                        <p id="modalBalance" class="text-2xl font-bold">
+                            RM 0.00
+                        </p>
+                    </div>
+                </div>
+
+                <button id="payBalanceBtn" class="hidden mt-4 w-full py-3 bg-blue-600 text-white rounded-xl font-bold text-sm shadow-lg hover:shadow-xl hover:bg-blue-700 transition-all flex items-center justify-center">
+                    <i data-lucide="credit-card" class="w-4 h-4 mr-2"></i>
+                    <span id="payBalanceText">Bayar Baki</span>
+                </button>
+
+                <button id="viewReceiptBtn" class="hidden mt-3 w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm shadow-lg transition-all flex items-center justify-center">
+                    <i data-lucide="file-text" class="w-4 h-4 mr-2"></i>
+                    <span>Lihat Resit Rasmi</span>
+                </button>
+
+                <button id="closeModalBottomBtn" class="mt-3 w-full py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-200 transition-all">
+                    Tutup
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST — popup "Berjaya"/ralat kat penjuru atas-kanan, auto-hilang.
+         Rujuk showToast() untuk cara panggil dari mana-mana action. -->
+    <div id="toastContainer" class="fixed top-4 right-4 z-[100] flex flex-col gap-2 items-end pointer-events-none"></div>
+
+    <!-- MODAL: Lihat Resit Rasmi/Bukti Bayaran DALAM APP (bukan buka tab
+         baharu) — sama konsep macam modal Lihat Resit dalam adminpasti,
+         guna iframe preview Drive terus. Rujuk openReceiptModal(). -->
+    <div id="receiptModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+            <div class="flex items-center justify-between p-4 border-b border-slate-100">
+                <h3 id="receiptModalTitle" class="font-bold text-slate-800">Resit Rasmi</h3>
+                <button id="closeReceiptModalBtn" class="text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="flex-1 bg-slate-50 flex items-center justify-center p-2">
+                <iframe id="receiptModalFrame" src="" class="w-full h-[70vh] rounded-lg border-0" title="Resit"></iframe>
+            </div>
+            <div class="p-3 border-t border-slate-100 text-center">
+                <a id="receiptModalOpenTab" href="#" target="_blank" class="text-xs text-sky-600 hover:underline">Buka dalam tab baharu</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="mt-12 text-center text-slate-400 text-xs">
+        <p id="footerText">© 2026 Sistem Pengurusan PASTI</p>
+    </div>
+
+    <!-- config.js = SATU-SATUNYA fail yang beza antara client (isi
+         APPS_SCRIPT_URL client tu). index.html sendiri DIKONGSI SAMA
+         untuk semua client — rujuk DEPLOYMENT-GUIDE.md bahagian
+         "Setup Client Baharu — Frontend". -->
+    <script src="config.js"></script>
+
+    <!-- JAVASCRIPT -->
+    <script>
+        // --- CONFIG ---
+        // Semua data (semakan yuran, hantar bukti bayaran) sekarang lalu
+        // Apps Script (doPost) sahaja — TIADA lagi Publish-to-Web CSV.
+        // APPS_SCRIPT_URL BUKAN declare di sini lagi — datang dari config.js
+        // (loaded sebelum script ni, const-nya "global" merentas <script>
+        // tag dalam page yang sama) supaya index.html boleh dikongsi
+        // TANPA ubah per-client.
+
+        const months = ["Januari", "Februari", "Mac", "April", "Mei", "Jun", "Julai", "Ogos", "September", "Oktober", "November", "Disember"];
+
+        // --- STATE ---
+        let searchResult = null;
+        let studentLogs = [];
+        let studentRegLogs = [];
+        let studentAdhocLogs = [];   // Yuran Lain-Lain (Yuran Baju/Event/dll)
+        let adhocFileMap = {};       // { [Timestamp]: File } — bukti bayaran dipilih tapi belum hantar
+        let adhocSubmitting = {};    // { [Timestamp]: true } — elak double-submit per caj
+        let receiptBase64 = null;
+        let receiptMimeType = null;
+
+        // Label paparan "Yuran Pendaftaran" — boleh admin tukar dari dashboard
+        // Tetapan Sistem (default "Yuran Tahunan"). Default di bawah sepadan
+        // dengan default backend supaya tak "flash" teks lama sebelum fetch
+        // GET_APP_SETTINGS selesai. PENTING: nilai internal 'Pendaftaran' yang
+        // dipakai sebagai value <option>, kunci formMonthSelect.value, dan
+        // penanda _type KEKAL SAMA di seluruh fail ni — cuma TEKS yang
+        // dipaparkan kepada parent yang tukar (rujuk applyPendaftaranLabel,
+        // createCardElement, openModal).
+        let pendaftaranLabel = 'Yuran Tahunan';
+
+        // --- DOM ELEMENTS ---
+        const searchForm = document.getElementById('searchForm');
+        const searchInput = document.getElementById('searchIc');
+        const searchBtn = document.getElementById('searchBtn');
+        const btnText = document.getElementById('btnText');
+        const btnLoader = document.getElementById('btnLoader');
+        const errorContainer = document.getElementById('errorContainer');
+        const errorText = document.getElementById('errorText');
+        const resultContainer = document.getElementById('resultContainer');
+        
+        const profileImage = document.getElementById('profileImage');
+        const profileFallback = document.getElementById('profileFallback');
+        const studentName = document.getElementById('studentName');
+        const studentIcDisplay = document.getElementById('studentIcDisplay');
+        const studentPasti = document.getElementById('studentPasti');
+        const studentGender = document.getElementById('studentGender');
+        const studentClass = document.getElementById('studentClass');
+        const studentTahun = document.getElementById('studentTahun');
+        const studentCawangan = document.getElementById('studentCawangan');
+        const studentGuru = document.getElementById('studentGuru');
+        const studentGuruLink = document.getElementById('studentGuruLink');
+        const studentWaris = document.getElementById('studentWaris');
+        const studentWarisPhone = document.getElementById('studentWarisPhone');
+        const warisPhoneText = document.getElementById('warisPhoneText');
+        const studentAddress = document.getElementById('studentAddress');
+
+        const feesInfoSection = document.getElementById('feesInfoSection');
+        const feeRegCard = document.getElementById('feeRegCard');
+        const feeRegAmount = document.getElementById('feeRegAmount');
+        const feeMonthCard = document.getElementById('feeMonthCard');
+        const feeMonthAmount = document.getElementById('feeMonthAmount');
+
+        const paymentForm = document.getElementById('paymentForm');
+        const formStudentName = document.getElementById('formStudentName');
+        const formStudentIc = document.getElementById('formStudentIc');
+        const formMonthSelect = document.getElementById('formMonth');
+        const formAmount = document.getElementById('formAmount');
+        const formFile = document.getElementById('formFile');
+        const fileEmptyState = document.getElementById('fileEmptyState');
+        const filePreviewState = document.getElementById('filePreviewState');
+        const imgPreview = document.getElementById('imgPreview');
+        const pdfPreview = document.getElementById('pdfPreview');
+        const fileNameDisplay = document.getElementById('fileName');
+        const removeFileBtn = document.getElementById('removeFileBtn');
+        const submitBtn = document.getElementById('submitBtn');
+        const submitText = document.getElementById('submitText');
+        const submitIcon = document.getElementById('submitIcon');
+        const submitLoader = document.getElementById('submitLoader');
+        const paymentSuccess = document.getElementById('paymentSuccess');
+        const btnNewPayment = document.getElementById('btnNewPayment');
+        const submitError = document.getElementById('submitError');
+        const submitErrorText = document.getElementById('submitErrorText');
+
+        const detailModal = document.getElementById('detailModal');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const closeModalBottomBtn = document.getElementById('closeModalBottomBtn');
+        const modalMonth = document.getElementById('modalMonth');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalIconContainer = document.getElementById('modalIconContainer');
+        const modalStatusText = document.getElementById('modalStatusText');
+        const modalFee = document.getElementById('modalFee');
+        const modalPaid = document.getElementById('modalPaid');
+        const modalBalance = document.getElementById('modalBalance');
+        const payBalanceBtn = document.getElementById('payBalanceBtn');
+        const payBalanceText = document.getElementById('payBalanceText');
+
+        const regCardContainer = document.getElementById('regCardContainer');
+        const monthGrid = document.getElementById('monthGrid');
+        const viewReceiptBtn = document.getElementById('viewReceiptBtn');
+
+        const paymentLogSection = document.getElementById('paymentLogSection');
+        const paymentLogBody = document.getElementById('paymentLogBody');
+
+        const adhocFeesSection = document.getElementById('adhocFeesSection');
+        const adhocFeesList = document.getElementById('adhocFeesList');
+
+        const editPhotoBtn = document.getElementById('editPhotoBtn');
+        const editPhotoInput = document.getElementById('editPhotoInput');
+
+        const editPhoneBtn = document.getElementById('editPhoneBtn');
+        const warisDisplayBlock = document.getElementById('warisDisplayBlock');
+        const phoneEditBlock = document.getElementById('phoneEditBlock');
+        const editPhone1 = document.getElementById('editPhone1');
+        const editPhone2 = document.getElementById('editPhone2');
+        const savePhoneBtn = document.getElementById('savePhoneBtn');
+        const cancelPhoneBtn = document.getElementById('cancelPhoneBtn');
+
+        const editAlamatBtn = document.getElementById('editAlamatBtn');
+        const alamatEditBlock = document.getElementById('alamatEditBlock');
+        const editAlamatInput = document.getElementById('editAlamatInput');
+        const saveAlamatBtn = document.getElementById('saveAlamatBtn');
+        const cancelAlamatBtn = document.getElementById('cancelAlamatBtn');
+
+        // --- INIT ---
+        window.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            initMonthSelect();
+            document.getElementById('currentYear').innerText = new Date().getFullYear();
+            fetchAppSettings();
+        });
+
+        // Label paparan "Yuran Pendaftaran" — GET_APP_SETTINGS TIADA token
+        // (awam), sepadan dengan handleGetAppSettings_ di Code.gs. Fetch
+        // sekali sejak page load; applyPendaftaranLabel() kemaskini semua
+        // teks statik + regenerate dropdown supaya label terus konsisten
+        // walaupun admin baru sahaja tukar tetapan tanpa parent refresh.
+        async function fetchAppSettings() {
+            try {
+                const response = await fetch(APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'GET_APP_SETTINGS' })
+                });
+                const result = await response.json();
+                if (result.result === 'success' && result.settings && result.settings.LABEL_PENDAFTARAN) {
+                    pendaftaranLabel = result.settings.LABEL_PENDAFTARAN;
+                }
+                if (result.result === 'success' && result.settings && result.settings.FOOTER_TEKS) {
+                    const footerEl = document.getElementById('footerText');
+                    if (footerEl) footerEl.innerText = result.settings.FOOTER_TEKS;
+                }
+                if (result.result === 'success' && result.settings) {
+                    applyBankInfo_(result.settings);
+                }
+            } catch (err) {
+                console.error('Gagal muat tetapan umum:', err);
+            } finally {
+                applyPendaftaranLabel();
+            }
+        }
+
+        // Papar maklumat bank/QR pada Borang Bayaran ikut Tetapan Sistem
+        // client ni (BANK_NAMA/BANK_PEMEGANG_AKAUN/BANK_NO_AKAUN/QR_FILE_ID).
+        // Kalau BANK_NO_AKAUN belum diisi SuperAdmin, papar mesej "belum
+        // disediakan" — elak parent nampak field kosong yang nampak rosak,
+        // atau lagi teruk, maklumat bank client LAIN (bug lama yang dah
+        // dibetulkan — setiap client kini WAJIB isi akaun sendiri).
+        function applyBankInfo_(settings) {
+            const noAkaun = (settings.BANK_NO_AKAUN || '').toString().trim();
+            const emptyEl = document.getElementById('bankInfoEmpty');
+            const contentEl = document.getElementById('bankInfoContent');
+            if (!noAkaun) {
+                if (emptyEl) emptyEl.classList.remove('hidden');
+                if (contentEl) contentEl.classList.add('hidden');
+                window.currentBankNoAkaun = '';
+                return;
+            }
+            if (emptyEl) emptyEl.classList.add('hidden');
+            if (contentEl) contentEl.classList.remove('hidden');
+
+            window.currentBankNoAkaun = noAkaun;
+            const namaBankEl = document.getElementById('bankNamaText');
+            if (namaBankEl) namaBankEl.textContent = settings.BANK_NAMA || '';
+            const pemegangEl = document.getElementById('bankPemegangText');
+            if (pemegangEl) pemegangEl.textContent = settings.BANK_PEMEGANG_AKAUN || '';
+            const noAkaunEl = document.getElementById('bankNoAkaunText');
+            if (noAkaunEl) noAkaunEl.textContent = noAkaun;
+
+            const qrId = (settings.QR_FILE_ID || '').toString().trim();
+            const qrWrap = document.getElementById('qrCodeWrap');
+            const qrImg = document.getElementById('qrCodeImg');
+            if (qrId && qrId !== 'NONE') {
+                if (qrImg) qrImg.src = `https://lh3.googleusercontent.com/d/${qrId}=s400`;
+                if (qrWrap) qrWrap.classList.remove('hidden');
+            } else {
+                if (qrWrap) qrWrap.classList.add('hidden');
+            }
+        }
+
+        // Kemaskini semua elemen STATIK yang guna label ni. Elemen yang
+        // dijana SEMASA carian (kad, modal, jadual log) sendiri baca
+        // `pendaftaranLabel` terus (closure atas `let` global) bila
+        // dipanggil, jadi automatik konsisten tanpa perlu re-render manual
+        // di sini — kecuali kalau carian dah pun berlaku SEBELUM fetch ni
+        // selesai, maka regenerate grid/log yang dah dipaparkan.
+        function applyPendaftaranLabel() {
+            const feeRegLabelEl = document.getElementById('feeRegLabel');
+            if (feeRegLabelEl) feeRegLabelEl.innerText = pendaftaranLabel;
+            const formMonthLabelEl = document.getElementById('formMonthLabel');
+            if (formMonthLabelEl) formMonthLabelEl.innerText = 'Jenis Bayaran (Bulan/' + pendaftaranLabel + ')';
+            initMonthSelect();
+            if (searchResult) {
+                renderGrid();
+                renderPaymentLog();
+            }
+        }
+
+        function initMonthSelect() {
+            formMonthSelect.innerHTML = '<option value="" disabled selected>Pilih Jenis Bayaran</option>';
+
+            const optReg = document.createElement('option');
+            optReg.value = "Pendaftaran";
+            optReg.innerText = pendaftaranLabel;
+            formMonthSelect.appendChild(optReg);
+
+            const divider = document.createElement('option');
+            divider.disabled = true;
+            divider.innerText = "──────────";
+            formMonthSelect.appendChild(divider);
+
+            months.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m;
+                opt.innerText = m;
+                formMonthSelect.appendChild(opt);
+            });
+        }
+
+        // --- SEARCH LOGIC (lalu Apps Script — satu IC sahaja setiap carian) ---
+        searchForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const ic = searchInput.value.replace(/[^0-9]/g, '');
+
+            errorContainer.classList.add('hidden');
+            resultContainer.classList.add('hidden');
+            paymentSuccess.classList.add('hidden');
+            paymentForm.classList.remove('hidden');
+
+            if (!ic) {
+                showError("Sila masukkan No. IC atau No. Telefon Waris.");
+                return;
+            }
+
+            searchInput.disabled = true;
+            searchBtn.disabled = true;
+            btnText.innerText = "Sedang Menyemak...";
+            btnLoader.classList.remove('hidden');
+
+            try {
+                const response = await fetch(APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'CHECK_FEE', ic: ic })
+                });
+                const result = await response.json();
+
+                if (result.result === 'success') {
+                    searchResult = result.student;
+                    studentLogs = result.monthlyLogs || [];
+                    studentRegLogs = result.regLogs || [];
+                    studentAdhocLogs = result.adhocLogs || [];
+                    adhocFileMap = {};
+                    adhocSubmitting = {};
+
+                    renderProfile();
+                    renderGrid();
+                    renderFeesInfo();
+                    renderPaymentLog();
+                    renderAdhocFees();
+
+                    formStudentName.innerText = searchResult['Nama'];
+                    formStudentIc.innerText = searchResult['IC'];
+                    formMonthSelect.value = months[new Date().getMonth()];
+                    formAmount.value = '';
+                    resetFileInput();
+
+                    resultContainer.classList.remove('hidden');
+                } else {
+                    showError(result.message || "Tiada rekod dijumpai.");
+                }
+            } catch (err) {
+                console.error(err);
+                showError("Gagal menyambung ke pangkalan data. Sila cuba lagi.");
+            } finally {
+                searchInput.disabled = false;
+                searchBtn.disabled = false;
+                btnText.innerText = "Semak Yuran";
+                btnLoader.classList.add('hidden');
+            }
+        });
+
+        function showError(msg) {
+            errorText.innerText = msg;
+            errorContainer.classList.remove('hidden');
+        }
+
+        function parseCurrency(val) {
+            if(!val) return 0;
+            const clean = val.toString().replace(/RM/gi, '').replace(/,/g, '').trim();
+            const num = parseFloat(clean);
+            return isNaN(num) ? 0 : num;
+        }
+
+        // --- PARSE "No Tel Waris" — boleh JSON array (2+ nombor) atau plain
+        // single nombor (data lama, backward compatible) ---
+        function parsePhoneNumbers(raw) {
+            if (!raw) return [];
+            const str = raw.toString().trim();
+            if (!str) return [];
+            if (str.charAt(0) === '[') {
+                try {
+                    const arr = JSON.parse(str);
+                    if (Array.isArray(arr)) return arr.map(v => String(v).trim()).filter(Boolean);
+                } catch (e) {
+                    // JSON tak valid — fallback ke bawah
+                }
+            }
+            return [str];
+        }
+
+        // --- GOOGLE DRIVE IMAGE HELPER ---
+        function getDriveDirectLink(url) {
+            if (!url) return '';
+            let fileId = null;
+            let match = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+            if (match && match[1]) {
+                fileId = match[1];
+            } else {
+                match = url.match(/id=([a-zA-Z0-9_-]+)/);
+                if (match && match[1]) fileId = match[1];
+            }
+            if (fileId) return `https://lh3.googleusercontent.com/d/${fileId}=s400`;
+            return url;
+        }
+
+        // --- RENDER UI ---
+        function renderProfile() {
+            studentName.innerText = searchResult['Nama'];
+            studentIcDisplay.innerText = searchResult['IC'];
+            studentPasti.innerText = searchResult['PASTI'] || '';
+            studentGender.innerText = searchResult['Jantina'] || '-';
+            studentClass.innerText = searchResult['Kelas'] || '-';
+            studentTahun.innerText = searchResult['Tahun'] || '-';
+            studentCawangan.innerText = searchResult['Cawangan'] || '-';
+            studentGuru.innerText = searchResult['Guru Kelas'] || '-';
+            studentWaris.innerText = searchResult['Nama Waris'] || '-';
+            studentAddress.innerText = searchResult['Alamat'] || 'Tiada rekod alamat.';
+
+            if(searchResult['No Guru Kelas']) {
+                studentGuruLink.href = `tel:${searchResult['No Guru Kelas']}`;
+                studentGuruLink.classList.remove('hidden');
+                studentGuruLink.classList.add('flex');
+            } else {
+                studentGuruLink.classList.add('hidden');
+            }
+
+            const warisPhones = parsePhoneNumbers(searchResult['No Tel Waris']);
+            if (warisPhones.length > 0) {
+                warisPhoneText.innerText = warisPhones.join(' / ');
+                studentWarisPhone.classList.remove('hidden');
+            } else {
+                studentWarisPhone.classList.add('hidden');
+            }
+
+            if(searchResult['Gambar Pelajar']) {
+                const directLink = getDriveDirectLink(searchResult['Gambar Pelajar']);
+                profileImage.src = directLink;
+                profileImage.onload = () => {
+                    profileImage.classList.remove('hidden');
+                    profileFallback.classList.add('hidden');
+                };
+                profileImage.onerror = () => {
+                    profileImage.classList.add('hidden');
+                    profileFallback.classList.remove('hidden');
+                };
+            } else {
+                profileImage.classList.add('hidden');
+                profileFallback.classList.remove('hidden');
+            }
+        }
+
+        function renderFeesInfo() {
+            const regFee = searchResult['Yuran Pendaftaran'];
+            const monFee = searchResult['Yuran Bulanan'];
+
+            if(regFee || monFee) {
+                feesInfoSection.classList.remove('hidden');
+                if(regFee) {
+                    feeRegAmount.innerText = regFee.includes('RM') ? regFee : `RM ${regFee}`;
+                    feeRegCard.classList.remove('hidden');
+                } else {
+                    feeRegCard.classList.add('hidden');
+                }
+                if(monFee) {
+                    feeMonthAmount.innerText = monFee.includes('RM') ? monFee : `RM ${monFee}`;
+                    feeMonthCard.classList.remove('hidden');
+                } else {
+                    feeMonthCard.classList.add('hidden');
+                }
+            } else {
+                feesInfoSection.classList.add('hidden');
+            }
+        }
+
+        function renderGrid() {
+            // 1. RENDER KAD PENDAFTARAN
+            regCardContainer.innerHTML = '';
+            
+            const stdRegFee = parseCurrency(searchResult['Yuran Pendaftaran']);
+            
+            const totalRegPaid = studentRegLogs.reduce((sum, l) => {
+                const val = l['JUMLAH BAYARAN'] || l['Jumlah Bayaran'];
+                return sum + parseCurrency(val);
+            }, 0);
+            
+            const regBalance = Math.max(0, stdRegFee - totalRegPaid);
+            let regStatus = 'OUTSTANDING';
+
+            // Menyelaraskan status untuk membaca dari VERIFICATION
+            const hasRegVerified = studentRegLogs.some(l => {
+                const s = (l['VERIFICATION'] || l['STATUS'] || l['Status'] || '').toLowerCase().trim();
+                return ['paid', 'lulus', 'selesai', 'verified', 'approved'].includes(s);
+            });
+
+            if (stdRegFee === 0) {
+                 regStatus = 'PAID';
+            } else if (hasRegVerified) {
+                regStatus = 'PAID';
+            } else if (regBalance <= 0.5) {
+                regStatus = 'AWAITING';
+            } else {
+                regStatus = 'OUTSTANDING';
+            }
+
+            const regReceiptLog = studentRegLogs.find(l => (l['VERIFICATION'] || '').toString().toUpperCase() === 'VERIFIED' && l['Resit']);
+            const regReceiptUrl = regReceiptLog ? regReceiptLog['Resit'] : '';
+            const regDiv = createCardElement("Pendaftaran", regStatus, true);
+            regDiv.addEventListener('click', () => openModal("Pendaftaran", regStatus, {totalPaid: totalRegPaid, stdFee: stdRegFee, balance: regBalance}, regReceiptUrl));
+            regCardContainer.appendChild(regDiv);
+
+
+            // 2. RENDER GRID BULANAN
+            monthGrid.innerHTML = '';
+            const stdFee = parseCurrency(searchResult['Yuran Bulanan']);
+
+            months.forEach(month => {
+                const logs = studentLogs.filter(l => {
+                    const lb = l['BULAN'] || l['Bulan'];
+                    return lb && lb.toLowerCase().trim() === month.toLowerCase();
+                });
+
+                const totalPaid = logs.reduce((sum, l) => {
+                    const val = l['JUMLAH BAYARAN'] || l['Jumlah Bayaran'];
+                    return sum + parseCurrency(val);
+                }, 0);
+
+                const balance = Math.max(0, stdFee - totalPaid);
+                
+                let status = 'OUTSTANDING';
+
+                // Menyelaraskan status untuk membaca dari VERIFICATION
+                const hasVerified = logs.some(l => {
+                    const s = (l['VERIFICATION'] || l['STATUS'] || l['Status'] || '').toLowerCase().trim();
+                    return ['paid', 'lulus', 'selesai', 'verified', 'approved'].includes(s);
+                });
+
+                if (stdFee === 0) {
+                    status = 'PAID';
+                } else if (hasVerified) {
+                    status = 'PAID';
+                } else if (balance <= 0.5) {
+                    status = 'AWAITING';
+                } else {
+                    status = 'OUTSTANDING';
+                }
+
+                const receiptLog = logs.find(l => (l['VERIFICATION'] || '').toString().toUpperCase() === 'VERIFIED' && l['Resit']);
+                const receiptUrl = receiptLog ? receiptLog['Resit'] : '';
+                const div = createCardElement(month.substring(0,3), status, false);
+                div.addEventListener('click', () => openModal(month, status, {totalPaid, stdFee, balance}, receiptUrl));
+                monthGrid.appendChild(div);
+            });
+            
+            lucide.createIcons();
+        }
+
+        function createCardElement(label, status, isLarge) {
+            const div = document.createElement('div');
+            const baseClass = isLarge
+                ? "w-48 rounded-xl p-3 text-center border text-sm font-bold flex flex-col items-center justify-center space-y-2 transition-all cursor-pointer transform hover:scale-105 shadow-md"
+                : "rounded-lg p-2 text-center border text-xs font-semibold flex flex-col items-center justify-center space-y-1 transition-all cursor-pointer transform hover:scale-105";
+            
+            let colorClass = '';
+            let iconHtml = '';
+            let statusLabel = '';
+
+            if(status === 'PAID') {
+                colorClass = ' bg-green-50 border-green-200 text-green-700 shadow-sm hover:bg-green-100';
+                iconHtml = '<i data-lucide="check-circle-2" class="w-5 h-5"></i>';
+                statusLabel = 'PAID';
+            } else if(status === 'AWAITING') {
+                colorClass = ' bg-yellow-50 border-yellow-200 text-yellow-700 shadow-sm hover:bg-yellow-100';
+                iconHtml = '<i data-lucide="clock" class="w-5 h-5"></i>';
+                statusLabel = 'AWAITING';
+            } else {
+                colorClass = ' bg-red-50 border-red-100 text-red-600 opacity-90 hover:bg-red-100';
+                iconHtml = '<i data-lucide="x-circle" class="w-5 h-5 opacity-50"></i>';
+                statusLabel = 'OUTSTANDING';
+            }
+
+            // label 'Pendaftaran' ialah PENANDA INTERNAL (dipakai balik oleh
+            // pemanggil untuk formMonthSelect.value) — hanya teks PAPARAN yang
+            // tukar ke pendaftaranLabel, bukan `label` itu sendiri.
+            const displayLabel = label === 'Pendaftaran' ? pendaftaranLabel : label;
+            div.className = baseClass + colorClass;
+            div.innerHTML = `<span>${displayLabel}</span>${iconHtml}<span class="text-[9px] uppercase font-bold tracking-wider">${statusLabel}</span>`;
+            return div;
+        }
+
+        // --- MODAL ---
+        function openModal(item, status, stats, receiptUrl) {
+            // sama macam createCardElement — `item` KEKAL 'Pendaftaran' (dipakai
+            // balik di payBalanceBtn.onclick di bawah untuk formMonthSelect.value),
+            // cuma teks paparan tajuk modal yang tukar.
+            modalMonth.innerText = item === 'Pendaftaran' ? pendaftaranLabel : item;
+            modalFee.innerText = `RM ${stats.stdFee.toFixed(2)}`;
+            modalPaid.innerText = `RM ${stats.totalPaid.toFixed(2)}`;
+            modalBalance.innerText = `RM ${stats.balance.toFixed(2)}`;
+            
+            modalBalance.className = `text-2xl font-bold ${stats.balance > 0 ? 'text-red-600' : 'text-green-600'}`;
+
+            let iconHtml = '';
+            let title = '';
+            let text = '';
+
+            if(status === 'PAID') {
+                iconHtml = '<div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center text-green-600 shadow-inner"><i data-lucide="check-circle-2" class="w-10 h-10"></i></div>';
+                title = "Sudah Dibayar";
+                text = `<div class="flex items-center justify-center space-x-1 text-green-600 font-bold"><i data-lucide="check-circle-2" class="w-4 h-4"></i><span>VERIFIED</span></div>`;
+                payBalanceBtn.classList.add('hidden');
+                if (receiptUrl) {
+                    viewReceiptBtn.classList.remove('hidden');
+                    viewReceiptBtn.onclick = () => openReceiptModal(receiptUrl, 'Resit Rasmi');
+                } else {
+                    viewReceiptBtn.classList.add('hidden');
+                }
+            } else if(status === 'AWAITING') {
+                iconHtml = '<div class="w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center text-yellow-600 shadow-inner"><i data-lucide="clock" class="w-10 h-10"></i></div>';
+                title = "Menunggu Pengesahan";
+                text = `<p class="text-yellow-600 text-sm font-medium">Bayaran diterima, menunggu admin sahkan.</p>`;
+                payBalanceBtn.classList.add('hidden');
+                viewReceiptBtn.classList.add('hidden');
+            } else {
+                iconHtml = '<div class="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center text-red-600 shadow-inner"><i data-lucide="x-circle" class="w-10 h-10"></i></div>';
+                title = "Belum Dijelaskan";
+                text = `<p class="text-red-500 text-sm font-medium">Sila jelaskan bayaran segera</p>`;
+                payBalanceBtn.classList.remove('hidden');
+                payBalanceText.innerText = `Bayar Baki (RM ${stats.balance.toFixed(2)})`;
+                payBalanceBtn.onclick = () => {
+                    formMonthSelect.value = item;
+                    formAmount.value = stats.balance.toFixed(2);
+                    closeModal();
+                    document.getElementById('paymentFormSection').scrollIntoView({behavior: 'smooth'});
+                };
+                viewReceiptBtn.classList.add('hidden');
+            }
+
+            modalIconContainer.innerHTML = iconHtml;
+            modalTitle.innerText = title;
+            modalStatusText.innerHTML = text;
+
+            detailModal.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeModal() {
+            detailModal.classList.add('hidden');
+        }
+
+        // --- TOAST ("Berjaya"/ralat) — dipanggil di hujung setiap action
+        // upload/simpan (rujuk hantar bukti bayaran, kemaskini gambar/no
+        // telefon/alamat di bawah) supaya parent nampak konfirmasi jelas,
+        // bukan sekadar UI senyap berubah tanpa mesej.
+        const toastContainer = document.getElementById('toastContainer');
+        function showToast(message, type) {
+            const el = document.createElement('div');
+            el.className = 'pointer-events-auto flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-sm font-semibold max-w-xs animate-fade-in ' +
+                (type === 'error' ? 'bg-red-600 text-white' : 'bg-emerald-600 text-white');
+            const iconName = type === 'error' ? 'alert-circle' : 'check-circle-2';
+            el.innerHTML = `<i data-lucide="${iconName}" class="w-[18px] h-[18px] flex-shrink-0"></i><span></span>`;
+            el.querySelector('span').textContent = message; // textContent — elak XSS, message boleh datang dari mesej ralat server
+            toastContainer.appendChild(el);
+            lucide.createIcons();
+            setTimeout(() => { el.remove(); }, 3500);
+        }
+
+        // --- MODAL: Lihat Resit/Bukti Bayaran DALAM APP (bukan buka tab
+        // baharu) — Drive "view" link ditukar ke embeddable "preview" link
+        // (endpoint preview Drive sendiri kendali PDF/imej secara generik,
+        // tak perlu teka jenis fail di client) — sama teknik macam modal
+        // Lihat Resit dalam dashboard admin.
+        const receiptModal = document.getElementById('receiptModal');
+        const receiptModalFrame = document.getElementById('receiptModalFrame');
+        const receiptModalTitle = document.getElementById('receiptModalTitle');
+        const receiptModalOpenTab = document.getElementById('receiptModalOpenTab');
+        const closeReceiptModalBtn = document.getElementById('closeReceiptModalBtn');
+
+        function getFileEmbedUrl(url) {
+            if (!url) return '';
+            const match = url.match(/(?:\/d\/|id=)([-\w]+)/);
+            if (match && match[1]) return `https://drive.google.com/file/d/${match[1]}/preview`;
+            return url;
+        }
+
+        function openReceiptModal(url, title) {
+            if (!url) return;
+            receiptModalTitle.innerText = title || 'Resit Rasmi';
+            receiptModalFrame.src = getFileEmbedUrl(url);
+            receiptModalOpenTab.href = url;
+            receiptModal.classList.remove('hidden');
+        }
+
+        function closeReceiptModal() {
+            receiptModal.classList.add('hidden');
+            receiptModalFrame.src = ''; // stop loading/preview lepas ditutup
+        }
+
+        closeReceiptModalBtn.addEventListener('click', closeReceiptModal);
+        receiptModal.addEventListener('click', (e) => {
+            if (e.target === receiptModal) closeReceiptModal();
+        });
+
+        closeModalBtn.addEventListener('click', closeModal);
+        closeModalBottomBtn.addEventListener('click', closeModal);
+
+        // --- LOG PEMBAYARAN (jadual ringkas semua rekod + link Resit Rasmi bila ada) ---
+        function renderPaymentLog() {
+            const combined = studentRegLogs.map(l => Object.assign({}, l, { _type: 'Pendaftaran' }))
+                .concat(studentLogs.map(l => Object.assign({}, l, { _type: 'Bulanan' })));
+
+            combined.sort((a, b) => {
+                const da = new Date((a['Timestamp'] || '').split(' ')[0].split('/').reverse().join('-'));
+                const db = new Date((b['Timestamp'] || '').split(' ')[0].split('/').reverse().join('-'));
+                return db - da;
+            });
+
+            if (combined.length === 0) {
+                paymentLogSection.classList.add('hidden');
+                paymentLogBody.innerHTML = '';
+                return;
+            }
+
+            paymentLogBody.innerHTML = combined.map(l => {
+                const status = (l['VERIFICATION'] || 'PENDING').toString().toUpperCase();
+                const statusClass = status === 'VERIFIED' ? 'bg-green-100 text-green-700' : (status === 'REJECTED' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700');
+                const jenis = l['_type'] === 'Pendaftaran' ? pendaftaranLabel : (l['BULAN'] || l['Bulan'] || 'Bulanan');
+                const jumlah = parseCurrency(l['JUMLAH BAYARAN'] || l['Jumlah Bayaran']);
+                const resitUrl = l['Resit'] || '';
+                const resitCell = resitUrl
+                    ? `<button type="button" onclick="openReceiptModal('${resitUrl}', 'Resit Rasmi')" class="text-emerald-600 hover:text-emerald-800"><i data-lucide="file-check" class="w-4 h-4 inline"></i></button>`
+                    : '<span class="text-slate-300">-</span>';
+                return `<tr>
+                    <td class="p-2">${jenis}</td>
+                    <td class="p-2 text-slate-500">${(l['Timestamp'] || '-').split(' ')[0]}</td>
+                    <td class="p-2 font-semibold">RM ${jumlah.toFixed(2)}</td>
+                    <td class="p-2"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${statusClass}">${status}</span></td>
+                    <td class="p-2 text-center">${resitCell}</td>
+                </tr>`;
+            }).join('');
+
+            paymentLogSection.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        // Escape ringkas untuk teks yang datang dari Sheet/admin (bukan dari
+        // parent) sebelum masuk innerHTML — "Jenis Yuran" ialah teks BEBAS
+        // admin taip (bukan senarai tetap macam nama Bulan/status), jadi
+        // risiko XSS sedikit lebih tinggi berbanding field lain dalam fail
+        // ni kalau akaun admin pernah disalahguna. Rujuk Teknik #6 checklist
+        // keselamatan (elak innerHTML mentah untuk data Sheet/user).
+        function escapeHtml(str) {
+            return (str || '').toString()
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        // --- YURAN LAIN-LAIN (ad-hoc, cth Yuran Baju/Event — dikenakan admin,
+        // parent muat naik bukti terus dari sini) ---
+        function renderAdhocFees() {
+            if (!studentAdhocLogs || studentAdhocLogs.length === 0) {
+                adhocFeesSection.classList.add('hidden');
+                adhocFeesList.innerHTML = '';
+                return;
+            }
+            adhocFeesSection.classList.remove('hidden');
+
+            const sorted = studentAdhocLogs.slice().sort((a, b) => {
+                const da = new Date((a['Timestamp'] || '').split(' ')[0].split('/').reverse().join('-'));
+                const db = new Date((b['Timestamp'] || '').split(' ')[0].split('/').reverse().join('-'));
+                return db - da;
+            });
+
+            adhocFeesList.innerHTML = sorted.map(f => {
+                const status = (f['Status'] || 'BELUM BAYAR').toString().toUpperCase();
+                const jenis = escapeHtml(f['Jenis Yuran'] || 'Yuran Lain-Lain');
+                const jumlah = parseCurrency(f['Jumlah']);
+                const ts = escapeHtml(f['Timestamp'] || '');
+                const resitUrl = f['Resit'] || '';
+                const isSubmitting = !!adhocSubmitting[f['Timestamp']];
+                const chosenFile = adhocFileMap[f['Timestamp']];
+
+                let statusBadge, actionHtml;
+                if (status === 'VERIFIED') {
+                    statusBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-700 whitespace-nowrap">SUDAH DIBAYAR</span>';
+                    actionHtml = resitUrl
+                        ? `<button type="button" onclick="openReceiptModal('${resitUrl}', 'Resit Rasmi')" class="text-emerald-600 text-xs font-semibold hover:underline flex items-center gap-1 mt-2"><i data-lucide="file-check" class="w-3.5 h-3.5"></i> Lihat Resit</button>`
+                        : '';
+                } else if (status === 'PENDING') {
+                    statusBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-yellow-100 text-yellow-700 whitespace-nowrap">MENUNGGU PENGESAHAN</span>';
+                    actionHtml = '<p class="text-xs text-slate-400 mt-2">Bukti bayaran diterima, menunggu admin sahkan.</p>';
+                } else {
+                    const isRejected = status === 'REJECTED';
+                    statusBadge = isRejected
+                        ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700 whitespace-nowrap">DITOLAK</span>'
+                        : '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-600 whitespace-nowrap">BELUM BAYAR</span>';
+                    actionHtml = `
+                        ${isRejected ? '<p class="text-[11px] text-red-500 mt-1">Bayaran lepas ditolak — sila muat naik bukti baharu.</p>' : ''}
+                        <div class="mt-2 flex flex-wrap items-center gap-2">
+                            <label class="flex-1 min-w-[140px] text-xs px-3 py-2 border border-dashed border-slate-300 rounded-lg text-slate-400 cursor-pointer hover:border-blue-400 hover:text-blue-500 transition text-center truncate" data-ts="${ts}">
+                                <span>${chosenFile ? escapeHtml(chosenFile.name) : 'Pilih bukti bayaran'}</span>
+                                <input type="file" accept="image/*,.pdf" class="hidden adhoc-file-input" data-ts="${ts}" />
+                            </label>
+                            <button type="button" class="adhoc-pay-btn px-4 py-2 rounded-lg text-xs font-bold bg-blue-600 text-white hover:bg-blue-700 transition disabled:opacity-50" data-ts="${ts}" ${isSubmitting || !chosenFile ? 'disabled' : ''}>
+                                ${isSubmitting ? 'Menghantar...' : 'Hantar'}
+                            </button>
+                        </div>
+                    `;
+                }
+
+                return `
+                    <div class="border border-slate-100 rounded-xl p-4">
+                        <div class="flex justify-between items-start gap-2">
+                            <div>
+                                <p class="font-bold text-slate-800 text-sm">${jenis}</p>
+                                <p class="text-xs text-slate-500">RM ${jumlah.toFixed(2)}</p>
+                            </div>
+                            ${statusBadge}
+                        </div>
+                        ${actionHtml}
+                    </div>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        // Event delegation (bukan re-bind lepas setiap render) — pilih fail
+        adhocFeesList.addEventListener('change', (e) => {
+            const input = e.target.closest('.adhoc-file-input');
+            if (!input) return;
+            const file = input.files[0];
+            const ts = input.dataset.ts;
+            if (!file) return;
+            if (file.size > 5 * 1024 * 1024) {
+                alert('Fail terlalu besar (Max 5MB).');
+                input.value = '';
+                return;
+            }
+            // ts di DOM sudah escapeHtml() — cari entri asal ikut Timestamp
+            // sebenar (bukan versi escaped) supaya adhocFileMap konsisten
+            // dengan key yang dipakai submitAdhocPayment().
+            const original = studentAdhocLogs.find(f => escapeHtml(f['Timestamp'] || '') === ts);
+            if (original) {
+                adhocFileMap[original['Timestamp']] = file;
+                renderAdhocFees();
+            }
+        });
+
+        // Event delegation — hantar bukti bayaran
+        adhocFeesList.addEventListener('click', (e) => {
+            const btn = e.target.closest('.adhoc-pay-btn');
+            if (!btn || btn.disabled) return;
+            const ts = btn.dataset.ts;
+            const original = studentAdhocLogs.find(f => escapeHtml(f['Timestamp'] || '') === ts);
+            if (original) submitAdhocPayment(original);
+        });
+
+        async function submitAdhocPayment(fee) {
+            const file = adhocFileMap[fee['Timestamp']];
+            if (!file) return;
+
+            adhocSubmitting[fee['Timestamp']] = true;
+            renderAdhocFees();
+
+            try {
+                const base64 = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result.split(',')[1]);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
+
+                const response = await fetch(APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: 'SUBMIT_ADHOC_PAYMENT',
+                        ic: fee['IC'] || searchResult['IC'],
+                        timestamp: fee['Timestamp'],
+                        image: base64,
+                        mimeType: file.type,
+                        filename: `YuranLainLain_${searchResult['Nama']}_${fee['Jenis Yuran']}`.replace(/\s+/g, '_')
+                    })
+                });
+                const result = await response.json();
+                if (result.result !== 'success') {
+                    throw new Error(result.message || 'Ralat menghantar bukti bayaran.');
+                }
+
+                fee['Status'] = 'PENDING';
+                delete adhocFileMap[fee['Timestamp']];
+                showToast('Bukti bayaran berjaya dihantar. Menunggu pengesahan admin.');
+            } catch (err) {
+                showToast('Gagal menghantar bukti bayaran: ' + err.message, 'error');
+            } finally {
+                delete adhocSubmitting[fee['Timestamp']];
+                renderAdhocFees();
+            }
+        }
+
+        editPhotoBtn.addEventListener('click', () => editPhotoInput.click());
+
+        editPhotoInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            if (file.size > 5 * 1024 * 1024) {
+                alert('Fail terlalu besar (Max 5MB).');
+                editPhotoInput.value = '';
+                return;
+            }
+            const reader = new FileReader();
+            reader.onloadend = async () => {
+                const base64 = reader.result.split(',')[1];
+                editPhotoBtn.disabled = true;
+                try {
+                    const response = await fetch(APPS_SCRIPT_URL, {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            action: 'UPDATE_PARENT_CONTACT',
+                            ic: searchResult['IC'],
+                            photoBase64: base64,
+                            photoMimeType: file.type,
+                            photoFilename: file.name
+                        })
+                    });
+                    const result = await response.json();
+                    if (result.result === 'success') {
+                        searchResult['Gambar Pelajar'] = result.photoUrl || searchResult['Gambar Pelajar'];
+                        renderProfile();
+                        showToast('Gambar berjaya dikemaskini.');
+                    } else {
+                        showToast(result.message || 'Gagal kemaskini gambar.', 'error');
+                    }
+                } catch (err) {
+                    showToast('Ralat menyambung ke server.', 'error');
+                } finally {
+                    editPhotoBtn.disabled = false;
+                    editPhotoInput.value = '';
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+
+        editPhoneBtn.addEventListener('click', () => {
+            const phones = parsePhoneNumbers(searchResult['No Tel Waris']);
+            editPhone1.value = phones[0] || '';
+            editPhone2.value = phones[1] || '';
+            warisDisplayBlock.classList.add('hidden');
+            phoneEditBlock.classList.remove('hidden');
+        });
+
+        cancelPhoneBtn.addEventListener('click', () => {
+            phoneEditBlock.classList.add('hidden');
+            warisDisplayBlock.classList.remove('hidden');
+        });
+
+        savePhoneBtn.addEventListener('click', async () => {
+            const p1 = editPhone1.value.replace(/[^0-9]/g, '').trim();
+            const p2 = editPhone2.value.replace(/[^0-9]/g, '').trim();
+            if (!p1) {
+                alert('Sila isi sekurang-kurangnya satu nombor telefon.');
+                return;
+            }
+            const noTelWaris = p2 ? JSON.stringify([p1, p2]) : p1;
+            savePhoneBtn.disabled = true;
+            savePhoneBtn.innerText = 'Menyimpan...';
+            try {
+                const response = await fetch(APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'UPDATE_PARENT_CONTACT', ic: searchResult['IC'], noTelWaris: noTelWaris })
+                });
+                const result = await response.json();
+                if (result.result === 'success') {
+                    searchResult['No Tel Waris'] = noTelWaris;
+                    renderProfile();
+                    phoneEditBlock.classList.add('hidden');
+                    warisDisplayBlock.classList.remove('hidden');
+                    showToast('No. telefon berjaya dikemaskini.');
+                } else {
+                    showToast(result.message || 'Gagal kemaskini no. telefon.', 'error');
+                }
+            } catch (err) {
+                showToast('Ralat menyambung ke server.', 'error');
+            } finally {
+                savePhoneBtn.disabled = false;
+                savePhoneBtn.innerText = 'Simpan';
+            }
+        });
+
+        editAlamatBtn.addEventListener('click', () => {
+            editAlamatInput.value = searchResult['Alamat'] || '';
+            studentAddress.classList.add('hidden');
+            alamatEditBlock.classList.remove('hidden');
+        });
+
+        cancelAlamatBtn.addEventListener('click', () => {
+            alamatEditBlock.classList.add('hidden');
+            studentAddress.classList.remove('hidden');
+        });
+
+        saveAlamatBtn.addEventListener('click', async () => {
+            const alamat = editAlamatInput.value.trim();
+            saveAlamatBtn.disabled = true;
+            saveAlamatBtn.innerText = 'Menyimpan...';
+            try {
+                const response = await fetch(APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'UPDATE_PARENT_CONTACT', ic: searchResult['IC'], alamat: alamat })
+                });
+                const result = await response.json();
+                if (result.result === 'success') {
+                    searchResult['Alamat'] = alamat;
+                    renderProfile();
+                    alamatEditBlock.classList.add('hidden');
+                    studentAddress.classList.remove('hidden');
+                    showToast('Alamat berjaya dikemaskini.');
+                } else {
+                    showToast(result.message || 'Gagal kemaskini alamat.', 'error');
+                }
+            } catch (err) {
+                showToast('Ralat menyambung ke server.', 'error');
+            } finally {
+                saveAlamatBtn.disabled = false;
+                saveAlamatBtn.innerText = 'Simpan';
+            }
+        });
+
+        // --- FILE HANDLING (BASE64) ---
+        formFile.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if(!file) return;
+
+            if(file.size > 5 * 1024 * 1024) {
+                showError("Fail terlalu besar (Max 5MB)");
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                receiptBase64 = reader.result.split(',')[1];
+                receiptMimeType = file.type;
+                fileNameDisplay.innerText = file.name;
+
+                fileEmptyState.classList.add('hidden');
+                filePreviewState.classList.remove('hidden');
+
+                if(file.type.includes('pdf')) {
+                    imgPreview.classList.add('hidden');
+                    pdfPreview.classList.remove('hidden');
+                } else {
+                    imgPreview.src = reader.result;
+                    imgPreview.classList.remove('hidden');
+                    pdfPreview.classList.add('hidden');
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+
+        removeFileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            resetFileInput();
+        });
+
+        function resetFileInput() {
+            formFile.value = '';
+            receiptBase64 = null;
+            receiptMimeType = null;
+            fileEmptyState.classList.remove('hidden');
+            filePreviewState.classList.add('hidden');
+        }
+
+        // --- FORM SUBMIT ---
+        paymentForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if(APPS_SCRIPT_URL.includes("URL_WEB_APP")) {
+                showError("Sila set URL App Script dalam kod!");
+                return;
+            }
+
+            submitError.classList.add('hidden');
+            submitBtn.disabled = true;
+            submitText.innerText = "Sedang Menghantar...";
+            submitIcon.classList.add('hidden');
+            submitLoader.classList.remove('hidden');
+
+            const payload = {
+                action: 'SUBMIT_PAYMENT',
+                nama: searchResult['Nama'],
+                ic: searchResult['IC'],
+                bulan: formMonthSelect.value,
+                jumlah: parseFloat(formAmount.value),
+                image: receiptBase64,
+                mimeType: receiptMimeType,
+                filename: `Resit_${searchResult['Nama']}_${formMonthSelect.value}`.replace(/\s+/g, '_')
+            };
+
+            const isRegistration = formMonthSelect.value === "Pendaftaran";
+            payload.sheetType = isRegistration ? "REGISTRATION" : "MONTHLY";
+
+            try {
+                const response = await fetch(APPS_SCRIPT_URL, {
+                    method: "POST",
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+
+                if (result.result !== 'success') {
+                    throw new Error(result.message || "Ralat menghantar bayaran.");
+                }
+
+                paymentForm.classList.add('hidden');
+                paymentSuccess.classList.remove('hidden');
+
+                const newLog = {
+                    'Timestamp': new Date().toLocaleString('en-GB'),
+                    'BULAN': payload.bulan,
+                    'JUMLAH BAYARAN': payload.jumlah,
+                    'VERIFICATION': 'PENDING',
+                    'IC': payload.ic
+                };
+
+                if(isRegistration) {
+                    studentRegLogs.push(newLog);
+                } else {
+                    studentLogs.push(newLog);
+                }
+
+                renderGrid();
+
+            } catch (err) {
+                console.error(err);
+                submitErrorText.innerText = err.message || "Ralat Sambungan. Sila cuba lagi.";
+                submitError.classList.remove('hidden');
+            } finally {
+                submitBtn.disabled = false;
+                submitText.innerText = "Hantar Bukti Bayaran";
+                submitIcon.classList.remove('hidden');
+                submitLoader.classList.add('hidden');
+            }
+        });
+
+        btnNewPayment.addEventListener('click', () => {
+            paymentSuccess.classList.add('hidden');
+            paymentForm.classList.remove('hidden');
+            formAmount.value = '';
+            resetFileInput();
+        });
+
+        // --- FUNGSI COPY AKAUN BANK ---
+        // window.currentBankNoAkaun diset dalam fetchAppSettings() dari
+        // BANK_NO_AKAUN (Config) — bukan hardcode, setiap client beza akaun.
+        function copyAccountNo() {
+            const accNo = (window.currentBankNoAkaun || '').replace(/\s+/g, ''); // buang jarak untuk mudahkan paste di app bank
+            if (!accNo) return;
+            const tempInput = document.createElement("input");
+            tempInput.value = accNo;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand("copy");
+            document.body.removeChild(tempInput);
+            
+            const feedback = document.getElementById('copyFeedback');
+            feedback.classList.remove('opacity-0');
+            feedback.classList.add('opacity-100');
+            
+            // Hilangkan mesej "Disalin" selepas 2 saat
+            setTimeout(() => {
+                feedback.classList.remove('opacity-100');
+                feedback.classList.add('opacity-0');
+            }, 2000);
+        }
+
+    </script>
+
+    <!-- PWA: daftar Service Worker (perlu untuk installability Chrome/Android/Desktop) -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').catch(() => { /* offline/gagal daftar — tak fatal */ });
+            });
+        }
+    </script>
+</body>
+</html>
