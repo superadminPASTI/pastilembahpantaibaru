@@ -15,4 +15,4 @@
 // window.X (bukan const/let) sengaja — jamin visible merentas <script> tag
 // lain dalam page yang sama tanpa ambil risiko dengan kelakuan scope
 // top-level let/const yang kurang biasa dipakai untuk tujuan ni.
-window.APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyUXIfp0i4P2Bu16lE4SN3CPSOwTC4WpTAu4oSOXl4xl1g3Y7EdNX1-cqSu-xIeUR7E6w/exec';
+window.APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxkyhBbFkY1YwC1YmHY8M0sZpYQCWqLmEaelTBXQ1f9OMlE_7qf7XyTXlpyInQJYxyd/exec';
